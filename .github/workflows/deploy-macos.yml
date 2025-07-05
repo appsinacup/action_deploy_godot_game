@@ -1,0 +1,169 @@
+name: Deploy Blazium macOS Game to App Store.
+
+on:
+  workflow_call:
+    secrets:
+      apple-id:
+        description: >-
+          Apple ID to use for authentication. Eg.
+        required: true
+      apple-team-id:
+        description: >-
+          Apple Team ID for the application. This is used in the signing
+          process.
+        required: true
+      app-specific-password:
+        description: >-
+          App-specific password for the Apple ID. This is required for
+          uploading to TestFlight. You can generate it from your Apple ID
+          account page.
+        required: true
+      deploy-certificate-base64:
+        description: >-
+          Base64 encoded deploy certificate for macOS application signing.
+        required: true
+      install-certificate-base64:
+        description: >-
+          Base64 encoded install certificate for macOS application signing.
+        required: true
+      p12-password:
+        description: >-
+          Password for the P12 certificate files used in signing.
+        required: true
+      deploy-provisioning-profile-mac-base64:
+        description: >-
+          Base64 encoded provisioning profile for macOS application deployment.
+        required: true
+      keychain-password:
+        description: >-
+          Password for the keychain used during the signing process.
+        required: true
+    inputs:
+      artifact-name:
+        type: string
+        description: >-
+          Name of the artifact to download. Eg. macOS
+        required: true
+      game-name:
+        type: string
+        description: >-
+          Name of the game, used for the artifact name. Eg. MyGame
+        required: true
+      macos-package:
+        type: string
+        description: >-
+          iOS package name to use in the entitlements file. This is used for
+          signing the application. Eg. com.example.app
+        required: true
+
+jobs:
+  deploy:
+    runs-on: macos-latest
+    env:
+      GAME_NAME: ${{ inputs.game-name }}
+    steps:
+      - uses: actions/checkout@v4
+      # Copy deploy entitlements
+      - uses: actions/checkout@v4
+        with:
+          repository: blazium-engine/deploy-blazium-game
+          fetch-depth: 0
+          path: deploy-blazium-game
+      - name: Copy deploy scripts
+        shell: bash
+        run: |
+          mkdir -p deploy
+          mkdir -p deploy/mac
+          mv deploy-blazium-game/deploy/mac/entitlements-deploy.plist deploy/mac/entitlements-deploy.plist
+
+      - name: 📥 Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: build
+
+      # https://docs.github.com/en/actions/deployment/deploying-xcode-applications/installing-an-apple-certificate-on-macos-runners-for-xcode-development
+      - name: Install the Apple certificate and provisioning profile
+        working-directory: build
+        env:
+          DEPLOY_CERTIFICATE_BASE64: ${{ secrets.deploy-certificate-base64 }}
+          INSTALL_CERTIFICATE_BASE64: ${{ secrets.install-certificate-base64 }}
+          P12_PASSWORD: ${{ secrets.p12-password }}
+          DEPLOY_PROVISION_PROFILE_MAC_BASE64: ${{ secrets.deploy-provisioning-profile-mac-base64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.keychain-password }}
+        run: |
+          # create variables
+          DEPLOY_CERTIFICATE_PATH=$RUNNER_TEMP/deploy_certificate.p12
+          INSTALL_CERTIFICATE_PATH=$RUNNER_TEMP/install_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.provisionprofile
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+          # import certificate and provisioning profile from secrets
+          echo -n "$DEPLOY_CERTIFICATE_BASE64" | base64 --decode -o $DEPLOY_CERTIFICATE_PATH
+          echo -n "$INSTALL_CERTIFICATE_BASE64" | base64 --decode -o $INSTALL_CERTIFICATE_PATH
+          echo -n "$DEPLOY_PROVISION_PROFILE_MAC_BASE64" | base64 --decode -o $PP_PATH
+
+          # create temporary keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # import certificate to keychain
+          # Import first certificate
+          security import $DEPLOY_CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          SIGNING_IDENTITY=$(security find-identity -p basic -v | awk -F'"' 'NR==1 {print $2}')
+          echo "DEPLOY_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
+          # Capture list of identities before second import
+          IDENTITIES_BEFORE=$(security find-identity -p basic -v | awk -F'"' '{print $2}')
+
+          # Import second certificate
+          security import $INSTALL_CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          security find-identity -p basic -v
+          # Capture list of identities after second import
+          IDENTITIES_AFTER=$(security find-identity -p basic -v | awk -F'"' '{print $2}')
+
+          # Find the new identity added (difference between after and before)
+          SECOND_SIGNING_IDENTITY=$(comm -13 <(echo "$IDENTITIES_BEFORE" | sort) <(echo "$IDENTITIES_AFTER" | sort) | head -n 1)
+
+          # Export to GitHub Actions environment
+          echo "INSTALL_SIGNING_IDENTITY=$SECOND_SIGNING_IDENTITY" >> $GITHUB_ENV
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          # apply provisioning profile
+          cp $PP_PATH $GAME_NAME.app/Contents/embedded.provisionprofile
+
+      - name: Code Sign
+        working-directory: build
+        run: |
+          # Remove wrong attributes
+          xattr -cr $GAME_NAME.app
+          # Set permissions and sign the application
+          chmod +x $GAME_NAME.app
+          # Set permission and sign the binary
+          chmod +x $GAME_NAME.app/Contents/MacOS/*
+          # Replace APPLE_TEAM_ID
+          sed -i '' "s/APPLE_TEAM_ID/${{ secrets.apple-team-id }}/g" ../deploy/mac/entitlements-deploy.plist
+          # Replace IOS_APP_PACKAGE
+          sed -i '' "s/IOS_APP_PACKAGE/${{ inputs.macos-package }}/g" ../deploy/mac/entitlements-deploy.plist
+          # Replace 
+          codesign --force --options=runtime --verbose --timestamp \
+            --entitlements ../deploy/mac/entitlements-deploy.plist --sign "$DEPLOY_SIGNING_IDENTITY" \
+            $GAME_NAME.app
+      - name: Make installer
+        working-directory: build
+        run: |
+          productbuild --sign "$INSTALL_SIGNING_IDENTITY" \
+          --component $GAME_NAME.app /Applications $GAME_NAME.pkg
+      
+      - name: Publish the App on TestFlight
+        working-directory: build
+        run: |
+          xcrun altool --upload-app --type osx --file $GAME_NAME.pkg \
+          --username "${{ secrets.apple-id }}" --password "${{ secrets.app-specific-password }}" --verbose
+
+      - name: List Files
+        run: |
+          ls -la
+          ls -la build

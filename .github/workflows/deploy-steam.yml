@@ -1,0 +1,112 @@
+name: Deploy Blazium Game to Steam.
+
+on:
+  workflow_call:
+    secrets:
+      steam-username:
+        description: >-
+          Steam username to use for authentication. This is used to log in to
+          Steam and deploy the game. Eg. username
+        required: true
+      steam-password:
+        description: >-
+          Steam password to use for authentication. This is used to log in to
+          Steam and deploy the game. Eg. password
+        required: true
+      steam-shared-secret:
+        description: >-
+          Steam shared secret for two-factor authentication. This is used to
+          authenticate the deployment process. You can find this in your Steam
+          account settings. Eg. ABCDEFGHIJKLMNOPQRSTUVWX
+        required: true
+    inputs:
+      game-version:
+        type: string
+        description: >-
+          Version of the game to deploy. This is used in the build description.
+          Eg. 1.0.0
+        required: true
+      steam-win64-depot-id:
+        type: string
+        description: >-
+          Steam depot ID for the Windows 64-bit build. Eg. 123456
+        required: true
+      steam-win32-depot-id:
+        type: string
+        description: >-
+          Steam depot ID for the Windows 32-bit build. Eg. 123457
+        required: true
+      steam-linux64-depot-id:
+        type: string
+        description: >-
+          Steam depot ID for the Linux 64-bit build. Eg. 123458
+        required: true
+      steam-linux32-depot-id:
+        type: string
+        description: >-
+          Steam depot ID for the Linux 32-bit build. Eg. 123459
+        required: true
+      steam-mac-depot-id:
+        type: string
+        description: >-
+          Steam depot ID for the macOS build. Eg. 123460
+        required: true
+      steam-app-id:
+        type: string
+        description: >-
+          Steam application ID for the game. This is used to identify the game
+          on Steam. Eg. 1234567
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+
+      - name: 📥 Download Linux x86_64
+        uses: actions/download-artifact@v4
+        with:
+          name: "Linux x86_64-steam"
+          path: build_linux_x86_64
+      - name: 📥 Download Linux x86_32
+        uses: actions/download-artifact@v4
+        with:
+          name: "Linux x86_32-steam"
+          path: build_linux_x86_32
+      - name: 📥 Download macOS
+        uses: actions/download-artifact@v4
+        with:
+          name: "macOS-steam"
+          path: build_macos
+      - name: 📥 Download Windows Desktop x86_64
+        uses: actions/download-artifact@v4
+        with:
+          name: "Windows Desktop x86_64-steam"
+          path: build_windows_x86_64
+      - name: 📥 Download Windows Desktop x86_32
+        uses: actions/download-artifact@v4
+        with:
+          name: "Windows Desktop x86_32-steam"
+          path: build_windows_x86_32
+
+      - name: Batch Deploy to Steam
+        uses: bioblaze/batch2steam@master
+        with:
+          username: ${{ secrets.steam-username }}
+          password: ${{ secrets.steam-password }}
+          shared_secret: ${{ secrets.steam-shared-secret }}
+          appId: '${{ inputs.steam-app-id }}'
+          rootPath: ''
+          baseDesc: '${{ inputs.game-version }}'
+          entries: >
+            [
+              { "depotID": "${{ inputs.steam-win64-depot-id }}", "buildDescription": "Windows 64-bit build - ${{ inputs.game-version }}", "depotPath": "build_windows_x86_64" },
+              { "depotID": "${{ inputs.steam-win32-depot-id }}", "buildDescription": "Windows 32-bit build - ${{ inputs.game-version }}", "depotPath": "build_windows_x86_32" },
+              { "depotID": "${{ inputs.steam-linux64-depot-id }}", "buildDescription": "Linux 64-bit build - ${{ inputs.game-version }}", "depotPath": "build_linux_x86_64" },
+              { "depotID": "${{ inputs.steam-linux32-depot-id }}", "buildDescription": "Linux 32-bit build - ${{ inputs.game-version }}", "depotPath": "build_linux_x86_32" },
+              { "depotID": "${{ inputs.steam-mac-depot-id }}", "buildDescription": "macOS build - ${{ inputs.game-version }}", "depotPath": "build_macos" }
+            ]

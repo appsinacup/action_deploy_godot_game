@@ -47,7 +47,7 @@ jobs:
 
       - name: 📤 Push Game to Itch.io
         run: |
-          butler push --context-timeout=300 build "${{ inputs.itchio-username }}/${{ inputs.itchio-game }}:${{ matrix.artifact-name }}"
+          butler push --context-timeout=300 build "${{ inputs.itchio-username }}/${{ inputs.itchio-game }}:${{ inputs.artifact-name }}"
         env:
           BUTLER_API_KEY: ${{ secrets.butler-credentials }}
   

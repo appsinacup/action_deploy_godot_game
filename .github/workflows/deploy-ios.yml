@@ -1,0 +1,44 @@
+name: Deploy Blazium iOS Game to App Store.
+
+on:
+  workflow_call:
+    secrets:
+      apple-id:
+        description: >-
+          Apple ID to use for authentication. Eg.
+        required: true
+      app-specific-password:
+        description: >-
+          App-specific password for the Apple ID. This is required for
+          uploading to TestFlight. You can generate it from your Apple ID
+          account page.
+        required: true
+    inputs:
+      artifact-name:
+        type: string
+        description: >-
+          Name of the artifact to download. Eg. Web
+        required: true
+      game-name:
+        type: string
+        description: >-
+          Name of the game, used for the artifact name. Eg. MyGame
+        required: true
+
+jobs:
+  deploy:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 📥 Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: build
+
+      - name: Publish the App on TestFlight
+        working-directory: build
+        run: |
+          xcrun altool --upload-app --type ios --file ${{ inputs.game-name }}.ipa \
+          --username "${{ secrets.apple-id }}" --password "${{ secrets.app-specific-password }}" --verbose
+    
