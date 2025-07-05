@@ -1,0 +1,272 @@
+
+runs:
+  using: composite
+  steps:
+    discord-upload:
+      if: github.ref == 'refs/heads/master'
+      needs: build
+      runs-on: ubuntu-latest
+      env:
+        DOCKER_REGISTRY: inputs.docker-registry
+        REGISTRY_PATH: blazium-registry
+      steps:
+        - name: Set up QEMU
+          uses: docker/setup-qemu-action@v3
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v3
+
+        - name: Login to Docker Hub
+          uses: docker/login-action@v3
+          with:
+            registry: ${{ env.DOCKER_REGISTRY }}
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+        - name: Clone blazium-engine/docker-webbuild-template
+          uses: actions/checkout@v4
+          with:
+            repository: blazium-engine/docker-webbuild-template
+            path: docker-webbuild-template
+        
+        - name: 📥 Download Build Artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: Web-web
+            path: docker-webbuild-template/static
+        
+        - name: LS on build
+          run: ls -la
+          working-directory: docker-webbuild-template/static
+
+        - name: Build and push
+          uses: docker/build-push-action@v6
+          with:
+            context: ./docker-webbuild-template
+            push: true
+            tags: |
+              ${{ env.DOCKER_REGISTRY }}/${{ env.REGISTRY_PATH }}/${{ env.DOCKER_NAME }}:latest
+              ${{ env.DOCKER_REGISTRY }}/${{ env.REGISTRY_PATH }}/${{ env.DOCKER_NAME }}:${{ github.sha }}  
+    steam-upload:
+      if: github.ref == 'refs/heads/master'
+
+      needs: build
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            submodules: true
+            fetch-depth: 0
+
+        - name: 📥 Download Linux x86_64
+          uses: actions/download-artifact@v4
+          with:
+            name: "Linux x86_64-steam"
+            path: build_linux_x86_64
+        - name: 📥 Download Linux x86_32
+          uses: actions/download-artifact@v4
+          with:
+            name: "Linux x86_32-steam"
+            path: build_linux_x86_32
+        - name: 📥 Download macOS
+          uses: actions/download-artifact@v4
+          with:
+            name: "macOS-steam"
+            path: build_macos
+        - name: 📥 Download Windows Desktop x86_64
+          uses: actions/download-artifact@v4
+          with:
+            name: "Windows Desktop x86_64-steam"
+            path: build_windows_x86_64
+        - name: 📥 Download Windows Desktop x86_32
+          uses: actions/download-artifact@v4
+          with:
+            name: "Windows Desktop x86_32-steam"
+            path: build_windows_x86_32
+
+        - name: Batch Deploy to Steam
+          uses: bioblaze/batch2steam@master
+          with:
+            username: ${{ secrets.STEAM_USERNAME }}
+            password: ${{ secrets.STEAM_PASSWORD }}
+            shared_secret: ${{ secrets.STEAM_SHARED_SECRET }}
+            appId: '${{ env.STEAM_APP_ID }}'
+            rootPath: ''
+            baseDesc: '${{ needs.build.outputs.game_version }}'
+            entries: >
+              [
+                { "depotID": "${{ env.STEAM_WIN64_DEPOT_ID }}", "buildDescription": "Windows 64-bit build - ${{ needs.build.outputs.game_version }}", "depotPath": "build_windows_x86_64" },
+                { "depotID": "${{ env.STEAM_WIN32_DEPOT_ID }}", "buildDescription": "Windows 32-bit build - ${{ needs.build.outputs.game_version }}", "depotPath": "build_windows_x86_32" },
+                { "depotID": "${{ env.STEAM_LINUX64_DEPOT_ID }}", "buildDescription": "Linux 64-bit build - ${{ needs.build.outputs.game_version }}", "depotPath": "build_linux_x86_64" },
+                { "depotID": "${{ env.STEAM_LINUX32_DEPOT_ID }}", "buildDescription": "Linux 32-bit build - ${{ needs.build.outputs.game_version }}", "depotPath": "build_linux_x86_32" },
+                { "depotID": "${{ env.STEAM_MAC_DEPOT_ID }}", "buildDescription": "macOS build - ${{ needs.build.outputs.game_version }}", "depotPath": "build_macos" }
+              ]
+    itch-upload:
+      if: github.ref == 'refs/heads/master'
+      needs: build
+      runs-on: ubuntu-latest
+      strategy:
+        fail-fast: false
+        max-parallel: 1
+        matrix:
+          artifact-name: ["Linux x86_64", "Linux x86_32", "Web", "macOS", "Windows Desktop x86_64", "Windows Desktop x86_32", "Windows Desktop arm64"]
+
+      steps:
+        - name: 📥 Download Build Artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: ${{ matrix.artifact-name }}-itch
+            path: build
+
+        - name: Install Butler
+          run: |
+            curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+            unzip butler.zip -d butler
+            chmod +x butler
+            sudo mv butler/butler /usr/local/bin/
+            rm -rf butler butler.zip
+
+        - name: Verify Butler Installation
+          run: butler -V
+
+        - name: 📤 Push Game to Itch.io
+          run: |
+            butler push --context-timeout=300 build "${{ env.ITCHIO_USERNAME }}/${{ env.ITCHIO_GAME }}:${{ matrix.artifact-name }}"
+          env:
+            BUTLER_API_KEY: ${{ secrets.BUTLER_CREDENTIALS }}
+    mac-appstore-upload:
+      runs-on: macos-latest
+      if: github.ref == 'refs/heads/master'
+      needs: build
+      steps:
+        - uses: actions/checkout@v4
+        - name: 📥 Download Build Artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: macOS-apple-store
+            path: build
+
+        # https://docs.github.com/en/actions/deployment/deploying-xcode-applications/installing-an-apple-certificate-on-macos-runners-for-xcode-development
+        - name: Install the Apple certificate and provisioning profile
+          working-directory: build
+          env:
+            DEPLOY_CERTIFICATE_BASE64: ${{ secrets.DEPLOY_CERTIFICATE_BASE64 }}
+            INSTALL_CERTIFICATE_BASE64: ${{ secrets.INSTALL_CERTIFICATE_BASE64 }}
+            P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+            DEPLOY_PROVISION_PROFILE_MAC_BASE64: ${{ secrets.DEPLOY_PROVISION_PROFILE_MAC_BASE64 }}
+            KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          run: |
+            # create variables
+            DEPLOY_CERTIFICATE_PATH=$RUNNER_TEMP/deploy_certificate.p12
+            INSTALL_CERTIFICATE_PATH=$RUNNER_TEMP/install_certificate.p12
+            PP_PATH=$RUNNER_TEMP/build_pp.provisionprofile
+            KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+            # import certificate and provisioning profile from secrets
+            echo -n "$DEPLOY_CERTIFICATE_BASE64" | base64 --decode -o $DEPLOY_CERTIFICATE_PATH
+            echo -n "$INSTALL_CERTIFICATE_BASE64" | base64 --decode -o $INSTALL_CERTIFICATE_PATH
+            echo -n "$DEPLOY_PROVISION_PROFILE_MAC_BASE64" | base64 --decode -o $PP_PATH
+
+            # create temporary keychain
+            security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+            security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+            security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+            # import certificate to keychain
+            # Import first certificate
+            security import $DEPLOY_CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+            security list-keychain -d user -s $KEYCHAIN_PATH
+            SIGNING_IDENTITY=$(security find-identity -p basic -v | awk -F'"' 'NR==1 {print $2}')
+            echo "DEPLOY_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
+            # Capture list of identities before second import
+            IDENTITIES_BEFORE=$(security find-identity -p basic -v | awk -F'"' '{print $2}')
+
+            # Import second certificate
+            security import $INSTALL_CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+            security list-keychain -d user -s $KEYCHAIN_PATH
+            security find-identity -p basic -v
+            # Capture list of identities after second import
+            IDENTITIES_AFTER=$(security find-identity -p basic -v | awk -F'"' '{print $2}')
+
+            # Find the new identity added (difference between after and before)
+            SECOND_SIGNING_IDENTITY=$(comm -13 <(echo "$IDENTITIES_BEFORE" | sort) <(echo "$IDENTITIES_AFTER" | sort) | head -n 1)
+
+            # Export to GitHub Actions environment
+            echo "INSTALL_SIGNING_IDENTITY=$SECOND_SIGNING_IDENTITY" >> $GITHUB_ENV
+            security list-keychain -d user -s $KEYCHAIN_PATH
+
+            # apply provisioning profile
+            cp $PP_PATH $GAME_NAME.app/Contents/embedded.provisionprofile
+
+        - name: Code Sign
+          working-directory: build
+          run: |
+            # Remove wrong attributes
+            xattr -cr $GAME_NAME.app
+            # Set permissions and sign the application
+            chmod +x $GAME_NAME.app
+            # Set permission and sign the binary
+            chmod +x $GAME_NAME.app/Contents/MacOS/*
+            # Replace APPLE_TEAM_ID
+            sed -i '' "s/APPLE_TEAM_ID/${{ secrets.APPLE_TEAM_ID }}/g" ../deploy/mac/entitlements-deploy.plist
+            codesign --force --options=runtime --verbose --timestamp \
+              --entitlements ../deploy/mac/entitlements-deploy.plist --sign "$DEPLOY_SIGNING_IDENTITY" \
+              $GAME_NAME.app
+        - name: Make installer
+          working-directory: build
+          run: |
+            productbuild --sign "$INSTALL_SIGNING_IDENTITY" \
+            --component $GAME_NAME.app /Applications $GAME_NAME.pkg
+        
+        - name: Publish the App on TestFlight
+          working-directory: build
+          run: |
+            xcrun altool --upload-app --type osx --file $GAME_NAME.pkg \
+            --username "${{ secrets.APPLE_ID }}" --password "${{ secrets.APP_SPECIFIC_PASSWORD }}" --verbose
+
+        - name: List Files
+          run: |
+            ls -la
+            ls -la build
+    ios-appstore-upload:
+      runs-on: macos-latest
+      if: github.ref == 'refs/heads/master'
+      needs: build
+      steps:
+        - uses: actions/checkout@v4
+        - name: 📥 Download Build Artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: iOS-apple-store
+            path: build
+
+        - name: Publish the App on TestFlight
+          working-directory: build
+          run: |
+            xcrun altool --upload-app --type ios --file $GAME_NAME.ipa \
+            --username "${{ secrets.APPLE_ID }}" --password "${{ secrets.APP_SPECIFIC_PASSWORD }}" --verbose
+    android-upload:
+      runs-on: ubuntu-latest
+      if: github.ref == 'refs/heads/master'
+      needs: build
+      steps:
+        - uses: actions/checkout@v4
+        - name: 📥 Download Build Artifact
+          uses: actions/download-artifact@v4
+          with:
+            name: Android-google-play
+            path: build
+        
+        - name: Copy service account
+          shell: bash
+          run: |
+            echo -n "${{ secrets.SERVICE_ACCOUNT_JSON_BASE64 }}" | base64 --decode >> service-account.json
+
+        - name: Publish to Play Store
+          uses: r0adkll/upload-google-play@v1
+          with:
+            serviceAccountJson: service-account.json
+            packageName: ${{ env.ANDROID_PACKAGE }}
+            releaseFiles: build/${{ env.GAME_NAME }}.aab
+            track: "internal"
+            status: draft
