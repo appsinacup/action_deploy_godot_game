@@ -3,7 +3,7 @@
 Reusable Action that deploys a Blazium game. This action deploys a game already built using [blazium-engine/export-blazium-game](https://github.com/blazium-engine/export-blazium-game). The resulting build needs to be uploaded as an artifact.
 
 This action can deploy to:
-- Docker
+- Docker Registry
 - itch.io
 - Play Store
 - iOS App Store
