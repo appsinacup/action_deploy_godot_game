@@ -1,10 +1,5 @@
 name: Deploy Blazium Web Game to Ngnix Docker Container.
 
-description: >-
-  Deploy Blazium Web Game to Ngnix Docker Container.
-
-author: 'Blazium'
-
 on:
   workflow_call:
     secrets:
@@ -18,61 +13,65 @@ on:
         required: true
     inputs:
       artifact-name:
+        type: string
         description: >-
           Name of the artifact to download. Eg. Web
         required: true
       docker-registry:
+        type: string
         description: >-
           Docker registry to push to. Eg. registry.digitalocean.com
         required: true
       registry-path:
+        type: string
         description: >-
           Full name of the Docker image to build and push. Eg. org-name/image-name
         required: true
 
-runs:
-  runs-on: ubuntu-latest
-  env:
-    ARTIFACT_NAME: ${{ inputs.artifact-name }}
-    DOCKER_REGISTRY: ${{ inputs.docker-registry }}
-    REGISTRY_PATH: ${{ inputs.registry-path }}
-    DOCKER_USERNAME: ${{ secrets.docker-username }}
-    DOCKER_TOKEN: ${{ secrets.docker-token }}
-  steps:
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ARTIFACT_NAME: ${{ inputs.artifact-name }}
+      DOCKER_REGISTRY: ${{ inputs.docker-registry }}
+      REGISTRY_PATH: ${{ inputs.registry-path }}
+      DOCKER_USERNAME: ${{ secrets.docker-username }}
+      DOCKER_TOKEN: ${{ secrets.docker-token }}
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.DOCKER_REGISTRY }}
-        username: ${{ env.DOCKER_USERNAME }}
-        password: ${{ env.DOCKER_TOKEN }}
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_TOKEN }}
 
-    - name: Clone blazium-engine/docker-webbuild-template
-      uses: actions/checkout@v4
-      with:
-        repository: blazium-engine/docker-webbuild-template
-        path: docker-webbuild-template
-    
-    - name: 📥 Download Build Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ env.ARTIFACT_NAME }}
-        path: docker-webbuild-template/static
-    
-    - name: LS on build
-      run: ls -la
-      working-directory: docker-webbuild-template/static
+      - name: Clone blazium-engine/docker-webbuild-template
+        uses: actions/checkout@v4
+        with:
+          repository: blazium-engine/docker-webbuild-template
+          path: docker-webbuild-template
+      
+      - name: 📥 Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: docker-webbuild-template/static
+      
+      - name: LS on build
+        run: ls -la
+        working-directory: docker-webbuild-template/static
 
-    - name: Build and push
-      uses: docker/build-push-action@v6
-      with:
-        context: ./docker-webbuild-template
-        push: true
-        tags: |
-          ${{ env.DOCKER_REGISTRY }}/${{ env.REGISTRY_PATH }}:latest
-          ${{ env.DOCKER_REGISTRY }}/${{ env.REGISTRY_PATH }}:${{ github.sha }}  
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker-webbuild-template
+          push: true
+          tags: |
+            ${{ env.DOCKER_REGISTRY }}/${{ env.REGISTRY_PATH }}:latest
+            ${{ env.DOCKER_REGISTRY }}/${{ env.REGISTRY_PATH }}:${{ github.sha }}  
