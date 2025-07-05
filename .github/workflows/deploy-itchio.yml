@@ -8,12 +8,12 @@ on:
           Butler credentials to use for authentication.
         required: true
     inputs:
-      itchio_username:
+      itchio-username:
         type: string
         description: >-
           Itch.io username to use for authentication. Eg. username
         required: true
-      itchio_game:
+      itchio-game:
         type: string
         description: >-
           Itch.io game slug to deploy to. Eg. game-slug
@@ -47,7 +47,7 @@ jobs:
 
       - name: 📤 Push Game to Itch.io
         run: |
-          butler push --context-timeout=300 build "${{ inputs.itchio_username }}/${{ inputs.itchio_game }}:${{ matrix.artifact-name }}"
+          butler push --context-timeout=300 build "${{ inputs.itchio-username }}/${{ inputs.itchio-game }}:${{ matrix.artifact-name }}"
         env:
           BUTLER_API_KEY: ${{ secrets.butler-credentials }}
   
