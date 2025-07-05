@@ -1,0 +1,53 @@
+name: Deploy Blazium Game to itch.io.
+
+on:
+  workflow_call:
+    secrets:
+      butler-credentials:
+        description: >-
+          Butler credentials to use for authentication.
+        required: true
+    inputs:
+      itchio_username:
+        type: string
+        description: >-
+          Itch.io username to use for authentication. Eg. username
+        required: true
+      itchio_game:
+        type: string
+        description: >-
+          Itch.io game slug to deploy to. Eg. game-slug
+        required: true
+      artifact-name:
+        type: string
+        description: >-
+          Name of the artifact to download. Eg. Linux x86_64
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: build
+
+      - name: Install Butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip -d butler
+          chmod +x butler
+          sudo mv butler/butler /usr/local/bin/
+          rm -rf butler butler.zip
+
+      - name: Verify Butler Installation
+        run: butler -V
+
+      - name: 📤 Push Game to Itch.io
+        run: |
+          butler push --context-timeout=300 build "${{ inputs.itchio_username }}/${{ inputs.itchio_game }}:${{ matrix.artifact-name }}"
+        env:
+          BUTLER_API_KEY: ${{ secrets.butler-credentials }}
+  
