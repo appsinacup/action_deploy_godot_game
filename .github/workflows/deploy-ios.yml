@@ -1,4 +1,4 @@
-name: Deploy Blazium iOS Game to App Store.
+name: Deploy Godot iOS Game to App Store.
 
 on:
   workflow_call:

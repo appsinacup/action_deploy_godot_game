@@ -1,4 +1,4 @@
-name: Deploy Blazium Android Game to Play Store.
+name: Deploy Godot Android Game to Play Store.
 
 on:
   workflow_call:

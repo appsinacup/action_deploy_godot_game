@@ -1,38 +1,23 @@
-# Deploy Blazium Game Action
+# Deploy Godot Game Action
 
-Reusable Action that deploys a Blazium game. This action deploys a game already built using [blazium-engine/export-blazium-game](https://github.com/blazium-engine/export-blazium-game). The resulting build needs to be uploaded as an artifact.
+Reusable Action that deploys a Godot game. This action deploys a game already built using [appsinacup/action_export_godot_game](https://github.com/appsinacup/action_export_godot_game). The resulting build needs to be uploaded as an artifact.
 
 This action can deploy to:
-- Docker Registry
 - itch.io
 - Play Store
 - iOS App Store
 - macOS App Store
 - Steam
 
-For instructions on how to generate the secrets, go to the [blazium-engine/export-blazium-game](https://github.com/blazium-engine/export-blazium-game) repo.
+For instructions on how to generate the secrets, go to the [appsinacup/action_export_godot_game](https://github.com/appsinacup/action_export_godot_game) repo.
 
 ## Usage
-
-- Docker Deploy:
-
-```yml
-deploy-docker:
-    uses: blazium-engine/deploy-blazium-game/.github/workflows/deploy-docker.yml@master
-    with:
-        artifact-name: Web
-        docker-registry: registry.digitalocean.com
-        registry-path: org-name/image-name
-    secrets:
-        docker-username: ${{ secrets.DOCKER_USERNAME }}
-        docker-token: ${{ secrets.DOCKER_TOKEN }}
-```
 
 - Itchio Deploy:
 
 ```yml
 deploy-itchio:
-    uses: blazium-engine/deploy-blazium-game/.github/workflows/deploy-itchio.yml@master
+    uses: appsinacup/action_deploy_godot_game/.github/workflows/deploy-itchio.yml@main
     strategy:
         fail-fast: false
         max-parallel: 1
@@ -50,7 +35,7 @@ deploy-itchio:
 
 ```yml
 deploy-android:
-    uses: blazium-engine/deploy-blazium-game/.github/workflows/deploy-android.yml@master
+    uses: appsinacup/action_deploy_godot_game/.github/workflows/deploy-android.yml@main
     with:
         artifact-name: Android
         android-package: com.example.game
@@ -63,7 +48,7 @@ deploy-android:
 
 ```yml
 deploy-ios:
-    uses: blazium-engine/deploy-blazium-game/.github/workflows/deploy-ios.yml@master
+    uses: appsinacup/action_deploy_godot_game/.github/workflows/deploy-ios.yml@main
     with:
         artifact-name: iOS-apple-store
         game-name: GameName
@@ -76,7 +61,7 @@ deploy-ios:
 
 ```yml
 deploy-macos:
-    uses: blazium-engine/deploy-blazium-game/.github/workflows/deploy-macos.yml@master
+    uses: appsinacup/action_deploy_godot_game/.github/workflows/deploy-macos.yml@main
     with:
         artifact-name: macOS
         game-name: GameName
@@ -96,7 +81,7 @@ deploy-macos:
 
 ```yml
 deploy-steam:
-    uses: blazium-engine/deploy-blazium-game/.github/workflows/deploy-steam.yml@master
+    uses: appsinacup/action_deploy_godot_game/.github/workflows/deploy-steam.yml@main
     with:
         game-version: 1.0
         steam-win64-depot-id: 123456

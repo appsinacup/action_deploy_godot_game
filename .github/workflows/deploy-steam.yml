@@ -1,4 +1,4 @@
-name: Deploy Blazium Game to Steam.
+name: Deploy Godot Game to Steam.
 
 on:
   workflow_call:
@@ -94,7 +94,7 @@ jobs:
           path: build_windows_x86_32
 
       - name: Batch Deploy to Steam
-        uses: bioblaze/batch2steam@master
+        uses: appsinacup/batch2steam@main
         with:
           username: ${{ secrets.steam-username }}
           password: ${{ secrets.steam-password }}

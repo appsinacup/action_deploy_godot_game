@@ -1,4 +1,4 @@
-name: Deploy Blazium Game to itch.io.
+name: Deploy Godot Game to itch.io.
 
 on:
   workflow_call:

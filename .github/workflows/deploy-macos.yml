@@ -1,4 +1,4 @@
-name: Deploy Blazium macOS Game to App Store.
+name: Deploy Godot macOS Game to App Store.
 
 on:
   workflow_call:
@@ -66,15 +66,15 @@ jobs:
       # Copy deploy entitlements
       - uses: actions/checkout@v4
         with:
-          repository: blazium-engine/deploy-blazium-game
+          repository: appsinacup/action_deploy_godot_game
           fetch-depth: 0
-          path: deploy-blazium-game
+          path: deploy-godot-game
       - name: Copy deploy scripts
         shell: bash
         run: |
           mkdir -p deploy
           mkdir -p deploy/mac
-          mv deploy-blazium-game/deploy/mac/entitlements-deploy.plist deploy/mac/entitlements-deploy.plist
+          mv deploy-godot-game/deploy/mac/entitlements-deploy.plist deploy/mac/entitlements-deploy.plist
 
       - name: 📥 Download Build Artifact
         uses: actions/download-artifact@v4
