@@ -1,5 +1,10 @@
 # Deploy Godot Game Action
 
+|[Website](https://appsinacup.com)|[Discord](https://discord.gg/56dMud8HYn)|
+|-|-|
+
+![example](docs/example.png)
+
 Reusable Action that deploys a Godot game. This action deploys a game already built using [appsinacup/action_export_godot_game](https://github.com/appsinacup/action_export_godot_game). The resulting build needs to be uploaded as an artifact.
 
 This action can deploy to:
