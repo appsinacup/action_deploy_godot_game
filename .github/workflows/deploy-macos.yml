@@ -147,10 +147,34 @@ jobs:
           sed -i '' "s/APPLE_TEAM_ID/${{ secrets.apple-team-id }}/g" ../deploy/mac/entitlements-deploy.plist
           # Replace IOS_APP_PACKAGE
           sed -i '' "s/IOS_APP_PACKAGE/${{ inputs.macos-package }}/g" ../deploy/mac/entitlements-deploy.plist
-          # Replace 
-          codesign --force --options=runtime --verbose --timestamp \
+          
+          # Sign ALL embedded frameworks first (if any exist)
+          if [ -d "$GAME_NAME.app/Contents/Frameworks" ]; then
+            find "$GAME_NAME.app/Contents/Frameworks" -name "*.framework" -type d | while read -r framework; do
+              echo "Signing framework: $framework"
+              codesign --force --options=runtime --verbose --timestamp \
+                --sign "$DEPLOY_SIGNING_IDENTITY" \
+                "$framework"
+            done
+          fi
+
+          # Sign the main application
+          codesign --force --deep --options=runtime --verbose --timestamp \
             --entitlements ../deploy/mac/entitlements-deploy.plist --sign "$DEPLOY_SIGNING_IDENTITY" \
             $GAME_NAME.app
+      - name: Verify Signatures
+        working-directory: build
+        run: |
+          # Check main app
+          codesign -dv --verbose=4 "$GAME_NAME.app"
+
+          # Check all frameworks (if any)
+          if [ -d "$GAME_NAME.app/Contents/Frameworks" ]; then
+            find "$GAME_NAME.app/Contents/Frameworks" -name "*.framework" -type d | while read -r framework; do
+              echo "Verifying: $framework"
+              codesign -dv --verbose=4 "$framework"
+            done
+          fi
       - name: Make installer
         working-directory: build
         run: |
