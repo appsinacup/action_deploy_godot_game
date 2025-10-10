@@ -59,12 +59,6 @@ runs:
         mkdir -p deploy/mac
         mv deploy-godot-game/deploy/mac/entitlements-deploy.plist deploy/mac/entitlements-deploy.plist
 
-    - name: 📥 Download Build Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ inputs.artifact-name }}
-        path: build
-
     # https://docs.github.com/en/actions/deployment/deploying-xcode-applications/installing-an-apple-certificate-on-macos-runners-for-xcode-development
     - name: Install the Apple certificate and provisioning profile
       shell: bash

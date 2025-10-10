@@ -36,32 +36,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: 📥 Download Linux x86_64
-      uses: actions/download-artifact@v4
-      with:
-        name: "Linux x86_64-steam"
-        path: build_linux_x86_64
-    - name: 📥 Download Linux x86_32
-      uses: actions/download-artifact@v4
-      with:
-        name: "Linux x86_32-steam"
-        path: build_linux_x86_32
-    - name: 📥 Download macOS
-      uses: actions/download-artifact@v4
-      with:
-        name: "macOS-steam"
-        path: build_macos
-    - name: 📥 Download Windows Desktop x86_64
-      uses: actions/download-artifact@v4
-      with:
-        name: "Windows Desktop x86_64-steam"
-        path: build_windows_x86_64
-    - name: 📥 Download Windows Desktop x86_32
-      uses: actions/download-artifact@v4
-      with:
-        name: "Windows Desktop x86_32-steam"
-        path: build_windows_x86_32
-
     - name: Batch Deploy to Steam
       uses: appsinacup/batch2steam@main
       with:

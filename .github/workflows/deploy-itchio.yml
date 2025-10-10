@@ -27,6 +27,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: 📥 Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: build
+      
       - name: Deploy to itch.io via composite action
         uses: ./.github/actions/deploy-itchio
         with:

@@ -29,6 +29,14 @@ jobs:
   deploy:
     runs-on: macos-latest
     steps:
+      - uses: actions/checkout@v4
+      
+      - name: 📥 Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: build
+      
       - name: Deploy iOS via composite action
         uses: ./.github/actions/deploy-ios
         with:
