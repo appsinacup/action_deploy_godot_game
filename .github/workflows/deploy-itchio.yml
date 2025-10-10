@@ -26,28 +26,12 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 📥 Download Build Artifact
-        uses: actions/download-artifact@v4
+      - name: Deploy to itch.io via composite action
+        uses: ./.github/actions/deploy-itchio
         with:
-          name: ${{ inputs.artifact-name }}
-          path: build
-
-      - name: Install Butler
-        run: |
-          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
-          unzip butler.zip -d butler
-          chmod +x butler
-          sudo mv butler/butler /usr/local/bin/
-          rm -rf butler butler.zip
-
-      - name: Verify Butler Installation
-        run: butler -V
-
-      - name: 📤 Push Game to Itch.io
-        run: |
-          butler push --context-timeout=300 build "${{ inputs.itchio-username }}/${{ inputs.itchio-game }}:${{ inputs.artifact-name }}"
-        env:
-          BUTLER_API_KEY: ${{ secrets.butler-credentials }}
+          artifact-name: ${{ inputs.artifact-name }}
+          itchio-username: ${{ inputs.itchio-username }}
+          itchio-game: ${{ inputs.itchio-game }}
+          butler-credentials: ${{ secrets.butler-credentials }}
   

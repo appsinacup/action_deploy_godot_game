@@ -1,0 +1,47 @@
+name: "Deploy to itch.io"
+description: "Download artifact and push to itch.io using Butler"
+
+inputs:
+  artifact-name:
+    description: "Name of the artifact to download (e.g., Linux x86_64)"
+    required: true
+  itchio-username:
+    description: "itch.io username"
+    required: true
+  itchio-game:
+    description: "itch.io game slug"
+    required: true
+  butler-credentials:
+    description: "Butler API key"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: 📥 Download Build Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: build
+
+    - name: Install Butler
+      shell: bash
+      run: |
+        set -euo pipefail
+        curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+        unzip butler.zip -d butler
+        chmod +x butler
+        sudo mv butler/butler /usr/local/bin/
+        rm -rf butler butler.zip
+
+    - name: Verify Butler Installation
+      shell: bash
+      run: butler -V
+
+    - name: 📤 Push Game to itch.io
+      shell: bash
+      env:
+        BUTLER_API_KEY: ${{ inputs.butler-credentials }}
+      run: |
+        set -euo pipefail
+        butler push --context-timeout=300 build "${{ inputs.itchio-username }}/${{ inputs.itchio-game }}:${{ inputs.artifact-name }}"

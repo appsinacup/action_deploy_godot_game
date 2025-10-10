@@ -1,0 +1,49 @@
+name: "Deploy Android to Play Store"
+description: "Download Android AAB artifact and upload to Google Play using a service account"
+
+inputs:
+  artifact-name:
+    description: "Name of the artifact to download (e.g., Android)"
+    required: true
+  android-package:
+    description: "Android application package name (e.g., com.example.app)"
+    required: true
+  game-name:
+    description: "Game name used for the artifact filename (expects <game-name>.aab)"
+    required: true
+  service-account-json-base64:
+    description: "Base64-encoded Google Play service account JSON"
+    required: true
+  track:
+    description: "Play track to upload to (internal, alpha, beta, production)"
+    required: false
+    default: "internal"
+  status:
+    description: "Release status (draft, inProgress, completed, halted)"
+    required: false
+    default: "draft"
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+    
+    - name: 📥 Download Build Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: build
+
+    - name: Copy service account
+      shell: bash
+      run: |
+        echo -n "${{ inputs.service-account-json-base64 }}" | base64 --decode >> service-account.json
+
+    - name: Publish to Play Store
+      uses: r0adkll/upload-google-play@v1
+      with:
+        serviceAccountJson: service-account.json
+        packageName: ${{ inputs.android-package }}
+        releaseFiles: build/${{ inputs.game-name }}.aab
+        track: ${{ inputs.track }}
+        status: ${{ inputs.status }}

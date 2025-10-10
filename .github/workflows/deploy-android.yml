@@ -29,23 +29,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: 📥 Download Build Artifact
-        uses: actions/download-artifact@v4
+      - name: Deploy Android via composite action
+        uses: ./.github/actions/deploy-android
         with:
-          name: ${{ inputs.artifact-name }}
-          path: build
-      
-      - name: Copy service account
-        shell: bash
-        run: |
-          echo -n "${{ secrets.service-account-json-base64 }}" | base64 --decode >> service-account.json
-
-      - name: Publish to Play Store
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJson: service-account.json
-          packageName: ${{ inputs.android-package }}
-          releaseFiles: build/${{ inputs.game-name }}.aab
-          track: "internal"
-          status: draft
+          artifact-name: ${{ inputs.artifact-name }}
+          android-package: ${{ inputs.android-package }}
+          game-name: ${{ inputs.game-name }}
+          service-account-json-base64: ${{ secrets.service-account-json-base64 }}

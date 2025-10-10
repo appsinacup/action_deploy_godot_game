@@ -1,0 +1,81 @@
+name: "Deploy to Steam"
+description: "Download platform artifacts and deploy to Steam using appsinacup/batch2steam"
+
+inputs:
+  game-version:
+    description: "Version used in build description"
+    required: true
+  steam-app-id:
+    description: "Steam application ID"
+    required: true
+  steam-win64-depot-id:
+    description: "Windows 64-bit depot ID"
+    required: true
+  steam-win32-depot-id:
+    description: "Windows 32-bit depot ID"
+    required: true
+  steam-linux64-depot-id:
+    description: "Linux 64-bit depot ID"
+    required: true
+  steam-linux32-depot-id:
+    description: "Linux 32-bit depot ID"
+    required: true
+  steam-mac-depot-id:
+    description: "macOS depot ID"
+    required: true
+  steam-username:
+    description: "Steam username"
+    required: true
+  steam-password:
+    description: "Steam password"
+    required: true
+  steam-shared-secret:
+    description: "Steam shared secret (2FA)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: 📥 Download Linux x86_64
+      uses: actions/download-artifact@v4
+      with:
+        name: "Linux x86_64-steam"
+        path: build_linux_x86_64
+    - name: 📥 Download Linux x86_32
+      uses: actions/download-artifact@v4
+      with:
+        name: "Linux x86_32-steam"
+        path: build_linux_x86_32
+    - name: 📥 Download macOS
+      uses: actions/download-artifact@v4
+      with:
+        name: "macOS-steam"
+        path: build_macos
+    - name: 📥 Download Windows Desktop x86_64
+      uses: actions/download-artifact@v4
+      with:
+        name: "Windows Desktop x86_64-steam"
+        path: build_windows_x86_64
+    - name: 📥 Download Windows Desktop x86_32
+      uses: actions/download-artifact@v4
+      with:
+        name: "Windows Desktop x86_32-steam"
+        path: build_windows_x86_32
+
+    - name: Batch Deploy to Steam
+      uses: appsinacup/batch2steam@main
+      with:
+        username: ${{ inputs.steam-username }}
+        password: ${{ inputs.steam-password }}
+        shared_secret: ${{ inputs.steam-shared-secret }}
+        appId: '${{ inputs.steam-app-id }}'
+        rootPath: ''
+        baseDesc: '${{ inputs.game-version }}'
+        entries: >
+          [
+            { "depotID": "${{ inputs.steam-win64-depot-id }}", "buildDescription": "Windows 64-bit build - ${{ inputs.game-version }}", "depotPath": "build_windows_x86_64" },
+            { "depotID": "${{ inputs.steam-win32-depot-id }}", "buildDescription": "Windows 32-bit build - ${{ inputs.game-version }}", "depotPath": "build_windows_x86_32" },
+            { "depotID": "${{ inputs.steam-linux64-depot-id }}", "buildDescription": "Linux 64-bit build - ${{ inputs.game-version }}", "depotPath": "build_linux_x86_64" },
+            { "depotID": "${{ inputs.steam-linux32-depot-id }}", "buildDescription": "Linux 32-bit build - ${{ inputs.game-version }}", "depotPath": "build_linux_x86_32" },
+            { "depotID": "${{ inputs.steam-mac-depot-id }}", "buildDescription": "macOS build - ${{ inputs.game-version }}", "depotPath": "build_macos" }
+          ]

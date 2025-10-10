@@ -59,135 +59,18 @@ on:
 jobs:
   deploy:
     runs-on: macos-latest
-    env:
-      GAME_NAME: ${{ inputs.game-name }}
     steps:
-      - uses: actions/checkout@v4
-      # Copy deploy entitlements
-      - uses: actions/checkout@v4
+      - name: Deploy macOS via composite action
+        uses: ./.github/actions/deploy-macos
         with:
-          repository: appsinacup/action_deploy_godot_game
-          fetch-depth: 0
-          path: deploy-godot-game
-      - name: Copy deploy scripts
-        shell: bash
-        run: |
-          mkdir -p deploy
-          mkdir -p deploy/mac
-          mv deploy-godot-game/deploy/mac/entitlements-deploy.plist deploy/mac/entitlements-deploy.plist
-
-      - name: 📥 Download Build Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact-name }}
-          path: build
-
-      # https://docs.github.com/en/actions/deployment/deploying-xcode-applications/installing-an-apple-certificate-on-macos-runners-for-xcode-development
-      - name: Install the Apple certificate and provisioning profile
-        working-directory: build
-        env:
-          DEPLOY_CERTIFICATE_BASE64: ${{ secrets.deploy-certificate-base64 }}
-          INSTALL_CERTIFICATE_BASE64: ${{ secrets.install-certificate-base64 }}
-          P12_PASSWORD: ${{ secrets.p12-password }}
-          DEPLOY_PROVISION_PROFILE_MAC_BASE64: ${{ secrets.deploy-provisioning-profile-mac-base64 }}
-          KEYCHAIN_PASSWORD: ${{ secrets.keychain-password }}
-        run: |
-          # create variables
-          DEPLOY_CERTIFICATE_PATH=$RUNNER_TEMP/deploy_certificate.p12
-          INSTALL_CERTIFICATE_PATH=$RUNNER_TEMP/install_certificate.p12
-          PP_PATH=$RUNNER_TEMP/build_pp.provisionprofile
-          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
-
-          # import certificate and provisioning profile from secrets
-          echo -n "$DEPLOY_CERTIFICATE_BASE64" | base64 --decode -o $DEPLOY_CERTIFICATE_PATH
-          echo -n "$INSTALL_CERTIFICATE_BASE64" | base64 --decode -o $INSTALL_CERTIFICATE_PATH
-          echo -n "$DEPLOY_PROVISION_PROFILE_MAC_BASE64" | base64 --decode -o $PP_PATH
-
-          # create temporary keychain
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # import certificate to keychain
-          # Import first certificate
-          security import $DEPLOY_CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-          SIGNING_IDENTITY=$(security find-identity -p basic -v | awk -F'"' 'NR==1 {print $2}')
-          echo "DEPLOY_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> $GITHUB_ENV
-          # Capture list of identities before second import
-          IDENTITIES_BEFORE=$(security find-identity -p basic -v | awk -F'"' '{print $2}')
-
-          # Import second certificate
-          security import $INSTALL_CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          security list-keychain -d user -s $KEYCHAIN_PATH
-          security find-identity -p basic -v
-          # Capture list of identities after second import
-          IDENTITIES_AFTER=$(security find-identity -p basic -v | awk -F'"' '{print $2}')
-
-          # Find the new identity added (difference between after and before)
-          SECOND_SIGNING_IDENTITY=$(comm -13 <(echo "$IDENTITIES_BEFORE" | sort) <(echo "$IDENTITIES_AFTER" | sort) | head -n 1)
-
-          # Export to GitHub Actions environment
-          echo "INSTALL_SIGNING_IDENTITY=$SECOND_SIGNING_IDENTITY" >> $GITHUB_ENV
-          security list-keychain -d user -s $KEYCHAIN_PATH
-
-          # apply provisioning profile
-          cp $PP_PATH $GAME_NAME.app/Contents/embedded.provisionprofile
-
-      - name: Code Sign
-        working-directory: build
-        run: |
-          # Remove wrong attributes
-          xattr -cr $GAME_NAME.app
-          # Set permissions and sign the application
-          chmod +x $GAME_NAME.app
-          # Set permission and sign the binary
-          chmod +x $GAME_NAME.app/Contents/MacOS/*
-          # Replace APPLE_TEAM_ID
-          sed -i '' "s/APPLE_TEAM_ID/${{ secrets.apple-team-id }}/g" ../deploy/mac/entitlements-deploy.plist
-          # Replace IOS_APP_PACKAGE
-          sed -i '' "s/IOS_APP_PACKAGE/${{ inputs.macos-package }}/g" ../deploy/mac/entitlements-deploy.plist
-          
-          # Sign ALL embedded frameworks first (if any exist)
-          if [ -d "$GAME_NAME.app/Contents/Frameworks" ]; then
-            find "$GAME_NAME.app/Contents/Frameworks" -name "*.framework" -type d | while read -r framework; do
-              echo "Signing framework: $framework"
-              codesign --force --options=runtime --verbose --timestamp \
-                --sign "$DEPLOY_SIGNING_IDENTITY" \
-                "$framework"
-            done
-          fi
-
-          # Sign the main application
-          codesign --force --deep --options=runtime --verbose --timestamp \
-            --entitlements ../deploy/mac/entitlements-deploy.plist --sign "$DEPLOY_SIGNING_IDENTITY" \
-            $GAME_NAME.app
-      - name: Verify Signatures
-        working-directory: build
-        run: |
-          # Check main app
-          codesign -dv --verbose=4 "$GAME_NAME.app"
-
-          # Check all frameworks (if any)
-          if [ -d "$GAME_NAME.app/Contents/Frameworks" ]; then
-            find "$GAME_NAME.app/Contents/Frameworks" -name "*.framework" -type d | while read -r framework; do
-              echo "Verifying: $framework"
-              codesign -dv --verbose=4 "$framework"
-            done
-          fi
-      - name: Make installer
-        working-directory: build
-        run: |
-          productbuild --sign "$INSTALL_SIGNING_IDENTITY" \
-          --component $GAME_NAME.app /Applications $GAME_NAME.pkg
-      
-      - name: Publish the App on TestFlight
-        working-directory: build
-        run: |
-          xcrun altool --upload-app --type osx --file $GAME_NAME.pkg \
-          --username "${{ secrets.apple-id }}" --password "${{ secrets.app-specific-password }}" --verbose
-
-      - name: List Files
-        run: |
-          ls -la
-          ls -la build
+          artifact-name: ${{ inputs.artifact-name }}
+          game-name: ${{ inputs.game-name }}
+          macos-package: ${{ inputs.macos-package }}
+          apple-team-id: ${{ secrets.apple-team-id }}
+          deploy-certificate-base64: ${{ secrets.deploy-certificate-base64 }}
+          install-certificate-base64: ${{ secrets.install-certificate-base64 }}
+          p12-password: ${{ secrets.p12-password }}
+          deploy-provisioning-profile-mac-base64: ${{ secrets.deploy-provisioning-profile-mac-base64 }}
+          keychain-password: ${{ secrets.keychain-password }}
+          apple-id: ${{ secrets.apple-id }}
+          app-specific-password: ${{ secrets.app-specific-password }}

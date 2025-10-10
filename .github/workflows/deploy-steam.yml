@@ -62,51 +62,16 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Deploy to Steam via composite action
+        uses: ./.github/actions/deploy-steam
         with:
-          submodules: true
-          fetch-depth: 0
-
-      - name: 📥 Download Linux x86_64
-        uses: actions/download-artifact@v4
-        with:
-          name: "Linux x86_64-steam"
-          path: build_linux_x86_64
-      - name: 📥 Download Linux x86_32
-        uses: actions/download-artifact@v4
-        with:
-          name: "Linux x86_32-steam"
-          path: build_linux_x86_32
-      - name: 📥 Download macOS
-        uses: actions/download-artifact@v4
-        with:
-          name: "macOS-steam"
-          path: build_macos
-      - name: 📥 Download Windows Desktop x86_64
-        uses: actions/download-artifact@v4
-        with:
-          name: "Windows Desktop x86_64-steam"
-          path: build_windows_x86_64
-      - name: 📥 Download Windows Desktop x86_32
-        uses: actions/download-artifact@v4
-        with:
-          name: "Windows Desktop x86_32-steam"
-          path: build_windows_x86_32
-
-      - name: Batch Deploy to Steam
-        uses: appsinacup/batch2steam@main
-        with:
-          username: ${{ secrets.steam-username }}
-          password: ${{ secrets.steam-password }}
-          shared_secret: ${{ secrets.steam-shared-secret }}
-          appId: '${{ inputs.steam-app-id }}'
-          rootPath: ''
-          baseDesc: '${{ inputs.game-version }}'
-          entries: >
-            [
-              { "depotID": "${{ inputs.steam-win64-depot-id }}", "buildDescription": "Windows 64-bit build - ${{ inputs.game-version }}", "depotPath": "build_windows_x86_64" },
-              { "depotID": "${{ inputs.steam-win32-depot-id }}", "buildDescription": "Windows 32-bit build - ${{ inputs.game-version }}", "depotPath": "build_windows_x86_32" },
-              { "depotID": "${{ inputs.steam-linux64-depot-id }}", "buildDescription": "Linux 64-bit build - ${{ inputs.game-version }}", "depotPath": "build_linux_x86_64" },
-              { "depotID": "${{ inputs.steam-linux32-depot-id }}", "buildDescription": "Linux 32-bit build - ${{ inputs.game-version }}", "depotPath": "build_linux_x86_32" },
-              { "depotID": "${{ inputs.steam-mac-depot-id }}", "buildDescription": "macOS build - ${{ inputs.game-version }}", "depotPath": "build_macos" }
-            ]
+          steam-username: ${{ secrets.steam-username }}
+          steam-password: ${{ secrets.steam-password }}
+          steam-shared-secret: ${{ secrets.steam-shared-secret }}
+          game-version: ${{ inputs.game-version }}
+          steam-app-id: ${{ inputs.steam-app-id }}
+          steam-win64-depot-id: ${{ inputs.steam-win64-depot-id }}
+          steam-win32-depot-id: ${{ inputs.steam-win32-depot-id }}
+          steam-linux64-depot-id: ${{ inputs.steam-linux64-depot-id }}
+          steam-linux32-depot-id: ${{ inputs.steam-linux32-depot-id }}
+          steam-mac-depot-id: ${{ inputs.steam-mac-depot-id }}

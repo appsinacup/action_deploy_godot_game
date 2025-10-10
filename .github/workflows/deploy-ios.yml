@@ -29,16 +29,12 @@ jobs:
   deploy:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: 📥 Download Build Artifact
-        uses: actions/download-artifact@v4
+      - name: Deploy iOS via composite action
+        uses: ./.github/actions/deploy-ios
         with:
-          name: ${{ inputs.artifact-name }}
-          path: build
-
-      - name: Publish the App on TestFlight
-        working-directory: build
-        run: |
-          xcrun altool --upload-app --type ios --file ${{ inputs.game-name }}.ipa \
-          --username "${{ secrets.apple-id }}" --password "${{ secrets.app-specific-password }}" --verbose
+          artifact-name: ${{ inputs.artifact-name }}
+          game-name: ${{ inputs.game-name }}
+          apple-id: ${{ secrets.apple-id }}
+          app-specific-password: ${{ secrets.app-specific-password }}
+          verbose: "true"
     
