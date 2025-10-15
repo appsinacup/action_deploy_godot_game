@@ -18,7 +18,8 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Install Butler
+    - name: Install Butler (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         set -euo pipefail
@@ -26,6 +27,29 @@ runs:
         unzip butler.zip -d butler
         chmod +x butler
         sudo mv butler/butler /usr/local/bin/
+        rm -rf butler butler.zip
+
+    - name: Install Butler (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        set -euo pipefail
+        curl -L -o butler.zip https://broth.itch.ovh/butler/darwin-amd64/LATEST/archive/default
+        unzip butler.zip -d butler
+        chmod +x butler
+        sudo mv butler/butler /usr/local/bin/
+        rm -rf butler butler.zip
+
+    - name: Install Butler (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+        curl -L -o butler.zip https://broth.itch.ovh/butler/windows-amd64/LATEST/archive/default
+        unzip butler.zip -d butler
+        chmod +x butler/butler.exe
+        mkdir -p /usr/local/bin
+        mv butler/butler.exe /usr/local/bin/butler.exe
         rm -rf butler butler.zip
 
     - name: Verify Butler Installation
