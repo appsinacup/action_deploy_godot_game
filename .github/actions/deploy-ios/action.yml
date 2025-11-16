@@ -26,6 +26,24 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Ensure build directory and ipa exist
+      shell: bash
+      env:
+        GAME_NAME: ${{ inputs.game-name }}
+      run: |
+        set -euo pipefail
+        echo "Checking for build directory and ipa..."
+        if [ ! -d "build" ]; then
+          echo "ERROR: 'build' directory not found. Make sure the workflow downloads artifacts to 'build' before calling this action." >&2
+          ls -la || true
+          exit 1
+        fi
+        if [ ! -f "build/${GAME_NAME}.ipa" ]; then
+          echo "ERROR: expected 'build/${GAME_NAME}.ipa' not found in 'build' directory." >&2
+          ls -la build || true
+          exit 1
+        fi
+
     - name: Publish the App on TestFlight
       shell: bash
       working-directory: build

@@ -59,6 +59,24 @@ runs:
         mkdir -p deploy/mac
         mv deploy-godot-game/deploy/mac/entitlements-deploy.plist deploy/mac/entitlements-deploy.plist
 
+    - name: Ensure build directory and artifact exist
+      shell: bash
+      env:
+        GAME_NAME: ${{ inputs.game-name }}
+      run: |
+        set -euo pipefail
+        echo "Checking for build directory and artifact..."
+        if [ ! -d "build" ]; then
+          echo "ERROR: 'build' directory not found. Make sure the workflow downloads artifacts to 'build' before calling this action." >&2
+          ls -la || true
+          exit 1
+        fi
+        if [ ! -d "build/${GAME_NAME}.app" ] && [ ! -f "build/${GAME_NAME}.pkg" ]; then
+          echo "ERROR: expected 'build/${GAME_NAME}.app' or 'build/${GAME_NAME}.pkg' not found in 'build' directory." >&2
+          ls -la build || true
+          exit 1
+        fi
+
     # https://docs.github.com/en/actions/deployment/deploying-xcode-applications/installing-an-apple-certificate-on-macos-runners-for-xcode-development
     - name: Install the Apple certificate and provisioning profile
       shell: bash
