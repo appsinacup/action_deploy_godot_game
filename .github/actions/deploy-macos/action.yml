@@ -51,6 +51,7 @@ runs:
         repository: appsinacup/action_deploy_godot_game
         fetch-depth: 0
         path: deploy-godot-game
+        clean: false
         
     - name: Copy deploy scripts
       shell: bash
