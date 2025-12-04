@@ -23,7 +23,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+        curl -L -o butler.zip https://broth.itch.zone/butler/linux-amd64/LATEST/archive/default
         unzip butler.zip -d butler
         chmod +x butler
         sudo mv butler/butler /usr/local/bin/
@@ -34,7 +34,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        curl -L -o butler.zip https://broth.itch.ovh/butler/darwin-amd64/LATEST/archive/default
+        curl -L -o butler.zip https://broth.itch.zone/butler/darwin-amd64/LATEST/archive/default
         unzip butler.zip -d butler
         chmod +x butler
         sudo mv butler/butler /usr/local/bin/
