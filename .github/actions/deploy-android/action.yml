@@ -36,6 +36,6 @@ runs:
       with:
         serviceAccountJson: service-account.json
         packageName: ${{ inputs.android-package }}
-        releaseFiles: build/${{ inputs.game-name }}.aab
+        releaseFiles: "build/${{ inputs.game-name }}.aab"
         track: ${{ inputs.track }}
         status: ${{ inputs.status }}

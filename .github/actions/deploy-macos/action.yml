@@ -120,7 +120,7 @@ runs:
         security list-keychain -d user -s $KEYCHAIN_PATH
 
         # apply provisioning profile
-        cp $PP_PATH $GAME_NAME.app/Contents/embedded.provisionprofile
+        cp $PP_PATH "$GAME_NAME.app/Contents/embedded.provisionprofile"
 
     - name: Code Sign
       shell: bash
@@ -129,11 +129,11 @@ runs:
         GAME_NAME: ${{ inputs.game-name }}
       run: |
         # Remove wrong attributes
-        xattr -cr $GAME_NAME.app
+        xattr -cr "$GAME_NAME.app"
         # Set permissions and sign the application
-        chmod +x $GAME_NAME.app
+        chmod +x "$GAME_NAME.app"
         # Set permission and sign the binary
-        chmod +x $GAME_NAME.app/Contents/MacOS/*
+        chmod +x "$GAME_NAME.app/Contents/MacOS/*"
         # Replace APPLE_TEAM_ID
         sed -i '' "s/APPLE_TEAM_ID/${{ inputs.apple-team-id }}/g" ../deploy/mac/entitlements-deploy.plist
         # Replace IOS_APP_PACKAGE
@@ -152,7 +152,7 @@ runs:
         # Sign the main application
         codesign --force --deep --options=runtime --verbose --timestamp \
           --entitlements ../deploy/mac/entitlements-deploy.plist --sign "$DEPLOY_SIGNING_IDENTITY" \
-          $GAME_NAME.app
+          "$GAME_NAME.app"
           
     - name: Verify Signatures
       shell: bash
@@ -178,7 +178,7 @@ runs:
         GAME_NAME: ${{ inputs.game-name }}
       run: |
         productbuild --sign "$INSTALL_SIGNING_IDENTITY" \
-        --component $GAME_NAME.app /Applications $GAME_NAME.pkg
+        --component "$GAME_NAME.app" /Applications "$GAME_NAME.pkg"
       
     - name: Publish the App on TestFlight
       shell: bash
@@ -186,7 +186,7 @@ runs:
       env:
         GAME_NAME: ${{ inputs.game-name }}
       run: |
-        xcrun altool --upload-app --type osx --file $GAME_NAME.pkg \
+        xcrun altool --upload-app --type osx --file "$GAME_NAME.pkg" \
         --username "${{ inputs.apple-id }}" --password "${{ inputs.app-specific-password }}" --verbose
 
     - name: List Files

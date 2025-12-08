@@ -48,5 +48,5 @@ runs:
       shell: bash
       working-directory: build
       run: |
-        xcrun altool --upload-app --type ios --file ${{ inputs.game-name }}.ipa \
+        xcrun altool --upload-app --type ios --file "${{ inputs.game-name }}.ipa" \
         --username "${{ inputs.apple-id }}" --password "${{ inputs.app-specific-password }}" --verbose
