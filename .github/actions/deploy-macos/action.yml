@@ -98,7 +98,11 @@ runs:
         echo -n "$INSTALL_CERTIFICATE_BASE64" | base64 --decode -o $INSTALL_CERTIFICATE_PATH
         echo -n "$DEPLOY_PROVISION_PROFILE_MAC_BASE64" | base64 --decode -o $PP_PATH
 
-        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+        # make sure no stale keychain exists, then create a unique one
+        if [ -f "$KEYCHAIN_PATH" ]; then
+          security delete-keychain "$KEYCHAIN_PATH" || true
+        fi
+        security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
         security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
         security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
@@ -120,7 +124,7 @@ runs:
         security list-keychain -d user -s $KEYCHAIN_PATH
 
         # apply provisioning profile
-        cp $PP_PATH "$GAME_NAME.app/Contents/embedded.provisionprofile"
+        cp "$PP_PATH" "$GAME_NAME.app/Contents/embedded.provisionprofile"
 
     - name: Code Sign
       shell: bash
@@ -132,8 +136,15 @@ runs:
         xattr -cr "$GAME_NAME.app"
         # Set permissions and sign the application
         chmod +x "$GAME_NAME.app"
-        # Set permission and sign the binary
-        chmod +x "$GAME_NAME.app/Contents/MacOS/*"
+        # Set permission and sign the binary safely (supports spaces and missing files)
+        shopt -s nullglob 2>/dev/null || true
+        if [ -d "$GAME_NAME.app/Contents/MacOS" ]; then
+          for f in "$GAME_NAME.app"/Contents/MacOS/*; do
+            [ -e "$f" ] && chmod +x "$f" || true
+          done
+        else
+          echo "WARNING: No Contents/MacOS directory at $GAME_NAME.app/Contents; skipping chmod on binaries" || true
+        fi
         # Replace APPLE_TEAM_ID
         sed -i '' "s/APPLE_TEAM_ID/${{ inputs.apple-team-id }}/g" ../deploy/mac/entitlements-deploy.plist
         # Replace IOS_APP_PACKAGE

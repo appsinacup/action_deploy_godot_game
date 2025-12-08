@@ -32,10 +32,47 @@ inputs:
   steam-shared-secret:
     description: "Steam shared secret (2FA)"
     required: true
+  artifact-root:
+    description: "Base folder where build artifacts are placed (default 'build')"
+    required: false
+    default: "build"
 
 runs:
   using: "composite"
   steps:
+    - name: Validate expected Steam depot artifact folders
+      shell: bash
+      run: |
+        set -euo pipefail
+        ROOT="${GITHUB_WORKSPACE}/${{ inputs.artifact-root }}"
+        echo "Checking artifact folders under: $ROOT"
+        required=(
+          "build_windows_x86_64"
+          "build_windows_x86_32"
+          "build_linux_x86_64"
+          "build_linux_x86_32"
+          "build_macos"
+        )
+        missing=()
+        for p in "${required[@]}"; do
+          if [ ! -e "$ROOT/$p" ]; then
+            missing+=("$p")
+          fi
+        done
+        if [ ${#missing[@]} -ne 0 ]; then
+          echo "ERROR: missing required depot artifact directories under '${{ inputs.artifact-root }}':"
+          for m in "${missing[@]}"; do echo "  - $ROOT/$m"; done
+          echo ""
+          echo "Ensure your build / download step places artifacts into '${{ inputs.artifact-root }}/<depotPath>' before calling this action."
+          echo "Examples to fix:"
+          echo "  - Use upload-artifact / download-artifact to put artifacts into '${{ inputs.artifact-root }}/build_windows_x86_64' etc."
+          echo "  - Or copy your build outputs into those directories before calling this action."
+          echo ""
+          echo "Listing ${GITHUB_WORKSPACE}/${{ inputs.artifact-root }}:" || true
+          ls -la "${GITHUB_WORKSPACE}/${{ inputs.artifact-root }}" || true
+          exit 1
+        fi
+
     - name: Batch Deploy to Steam
       uses: appsinacup/batch2steam@main
       with:
@@ -43,7 +80,7 @@ runs:
         password: ${{ inputs.steam-password }}
         shared_secret: ${{ inputs.steam-shared-secret }}
         appId: '${{ inputs.steam-app-id }}'
-        rootPath: ''
+        rootPath: '${{ inputs.artifact-root }}'
         baseDesc: '${{ inputs.game-version }}'
         entries: >
           [
